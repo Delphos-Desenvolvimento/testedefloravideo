@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body { margin: 0; background: #222; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; }
+        .bg { position: fixed; top:0; left:0; width:100%; height:100%; z-index:-1; background: repeating-conic-gradient(#333 0% 25%, #444 0% 50%) 50% / 20px 20px; }
+        .container { position: relative; width: 90vw; max-width: 400px; }
+        
+        /* Importante: iOS deve ter o vídeo visível no DOM (pode ser transparente ou muito pequeno), caso contrário, pode não decodificar */
+        #v { position: absolute; top:0; left:0; width: 1px; height: 1px; opacity: 0.01; pointer-events: none; }
+        
+        #c {
+            width: 100%; height: auto; display: block;
+            filter: url(#remove-black);
+            -webkit-filter: url(#remove-black);
+            will-change: filter; /* 强制 iOS 开启硬件加速 */
+        }
+
+        #btn { position: absolute; top:50%; left:50%; transform:translate(-50%,-50%); padding: 15px 30px; background: #007aff; color:white; border-radius:30px; border:none; z-index:100; font-size: 18px; }
+    </style>
+</head>
+<body>
+    <div class="bg"></div>
+    <div class="container">
+        <button id="btn">play</button>
+        <canvas id="c"></canvas>
+        <video id="v" src="src/test.mp4" loop muted playsinline webkit-playsinline crossorigin="anonymous"></video>
+    </div>
+
+    <svg width="0" height="0" style="position:absolute;">
+        <filter id="remove-black" color-interpolation-filters="sRGB">
+            <feColorMatrix type="matrix" values="1 0 0 0 0
+                                     0 1 0 0 0
+                                     0 0 1 0 0
+                                     10 10 10 0 -0.1" />
+        </filter>
+    </svg>
+
+    <script>
+        const v = document.getElementById('v');
+        const c = document.getElementById('c');
+        const ctx = c.getContext('2d', { alpha: true });
+        const btn = document.getElementById('btn');
+
+        let active = false;
+
+        function render() {
+            if (!active || v.paused || v.ended) return;
+
+            // Certifique-se de que a largura do vídeo foi carregada
+            if (v.videoWidth > 0) {
+                if (c.width !== v.videoWidth) {
+                    c.width = v.videoWidth;
+                    c.height = v.videoHeight;
+                }
+                ctx.drawImage(v, 0, 0);
+            }
+            
+            requestAnimationFrame(render);
+        }
+
+        btn.onclick = () => {
+            // O iOS deve executar o play imediatamente dentro do evento de clique
+            v.play().then(() => {
+                active = true;
+                btn.style.display = 'none';
+                render();
+            }).catch(err => {
+                console.error("Play error:", err);
+                alert("Falha ao reproduzir, verifique o caminho do vídeo");
+            });
+        };
+    </script>
+</body>
+</html>
